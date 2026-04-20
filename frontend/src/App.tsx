@@ -1,11 +1,22 @@
-function App() {
-  return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1 style={{ color: 'var(--poke-red)' }}>Showdown</h1>
-      <p>The frontend is alive.</p>
-      <button style={{ marginTop: '1rem' }}>Test Button</button>
-    </div>
-  )
-}
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import TeamView from './pages/TeamView';
+import Dashboard from './pages/Dashboard'; 
 
-export default App;
+export default function App() {
+  const isAuthenticated = !!localStorage.getItem('token');
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
+        <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
+        
+        <Route path="/" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
+        
+       <Route path="/team/:id" element={isAuthenticated ? <TeamView /> : <Navigate to="/login" />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

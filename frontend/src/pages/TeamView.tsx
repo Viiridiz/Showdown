@@ -2,14 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import TeamRoster from '../components/TeamRoster';
+import AddPokemonForm from '../components/AddPokemonForm'; // Import your new component
 
 export default function TeamView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
   const [team, setTeam] = useState<any>(null);
-  const [pokemonName, setPokemonName] = useState('');
-  const [moves, setMoves] = useState('');
 
   useEffect(() => {
     api.get('/teams').then(res => {
@@ -17,26 +15,6 @@ export default function TeamView() {
       setTeam(found);
     }).catch(err => console.log(err));
   }, [id]);
-
-  const handleAddPokemon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.post('/slots', {
-        teamId: id,
-        pokemonId: pokemonName.toLowerCase().trim(), 
-        nickname: '',
-        ability: '',
-        heldItem: '',
-        moves: moves.split(',').map(m => m.trim()), 
-        evSpread: ''
-      });
-      setPokemonName('');
-      setMoves('');
-      window.location.reload();
-    } catch (err) {
-      console.log("Error adding pokemon", err);
-    }
-  };
 
   const handleDeleteTeam = async () => {
     try {
@@ -54,10 +32,7 @@ export default function TeamView() {
 
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '0 20px' }}>
-      <button 
-        onClick={() => navigate('/')} 
-        style={{ backgroundColor: 'var(--poke-dark)', marginBottom: '20px' }}
-      >
+      <button onClick={() => navigate('/')} style={{ backgroundColor: 'var(--poke-dark)', marginBottom: '20px' }}>
         ← Back to Feed
       </button>
       
@@ -75,30 +50,12 @@ export default function TeamView() {
         
         <TeamRoster teamId={id || ''} />
         
+        {/* The Smart Add Form */}
         {isOwner && (
-          <>
-            <h3 style={{ marginTop: '30px', borderBottom: '2px solid var(--poke-gray)', paddingBottom: '10px' }}>
-              Add a Pokémon
-            </h3>
-            <form onSubmit={handleAddPokemon} style={{ display: 'flex', gap: '10px', marginTop: '15px', flexWrap: 'wrap' }}>
-              <input 
-                type="text" 
-                placeholder="Pokémon Name (e.g., Pelipper)" 
-                value={pokemonName} 
-                onChange={(e) => setPokemonName(e.target.value)} 
-                required 
-                style={{ flex: 1 }}
-              />
-              <input 
-                type="text" 
-                placeholder="Moves (comma separated)" 
-                value={moves} 
-                onChange={(e) => setMoves(e.target.value)} 
-                style={{ flex: 2 }}
-              />
-              <button type="submit">Slot In</button>
-            </form>
-          </>
+          <AddPokemonForm 
+            teamId={id || ''} 
+            onAddSuccess={() => window.location.reload()} 
+          />
         )}
       </div>
     </div>

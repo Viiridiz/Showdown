@@ -1,0 +1,46 @@
+:root {
+  --poke-red: #EE1515;
+  --poke-dark: #222224;
+  --poke-white: #F0F0F0;
+  --poke-gray: #CCCCCC;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--poke-white);
+  color: var(--poke-dark);
+}
+
+button {
+  background-color: var(--poke-red);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+/* Global Input Style */
+input, select {
+  padding: 10px;
+  border: 2px solid var(--poke-gray);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--poke-red);
+}

@@ -9,7 +9,7 @@ interface Slot {
   nickname?: string;
 }
 
-export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCountUpdate }: { teamId: string, isOwner?: boolean, onPokemonClick?: (slot: Slot) => void, onSlotCountUpdate?: (count: number) => void }) {
+export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCountUpdate, refreshTrigger }: { teamId: string, isOwner?: boolean, onPokemonClick?: (slot: Slot) => void, onSlotCountUpdate?: (count: number) => void, refreshTrigger?: number }) {
   const [slots, setSlots] = useState<Slot[]>([]);
 
   useEffect(() => {
@@ -21,18 +21,18 @@ export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCoun
           onSlotCountUpdate(fetchedSlots.length);
         }
       })
-      .catch(err => console.log("Error fetching slots", err));
-  }, [teamId, onSlotCountUpdate]);
+      .catch(err => console.error("Error fetching slots", err));
+  }, [teamId, onSlotCountUpdate, refreshTrigger]);
 
   return (
     <div style={{ 
       display: 'flex', 
       justifyContent: 'space-evenly', 
       alignItems: 'center',
-      margin: '15px 0', 
-      padding: '10px',
-      backgroundColor: 'var(--poke-white)', 
-      borderRadius: '8px',
+      margin: '25px 0', 
+      padding: '15px',
+      backgroundColor: '#f8f9fa', 
+      borderRadius: '12px',
       border: '1px solid var(--poke-gray)'
     }}>
       {slots.map(slot => (
@@ -41,10 +41,10 @@ export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCoun
           onClick={() => isOwner && onPokemonClick && onPokemonClick(slot)}
           style={{ 
             cursor: isOwner ? 'pointer' : 'default',
-            transition: 'opacity 0.2s'
+            transition: 'transform 0.2s, opacity 0.2s'
           }}
-          onMouseEnter={(e) => isOwner && (e.currentTarget.style.opacity = '0.7')}
-          onMouseLeave={(e) => isOwner && (e.currentTarget.style.opacity = '1')}
+          onMouseEnter={(e) => isOwner && (e.currentTarget.style.transform = 'scale(1.1)')}
+          onMouseLeave={(e) => isOwner && (e.currentTarget.style.transform = 'scale(1)')}
         >
           <PokemonSprite name={slot.pokemonId} />
         </div>
@@ -52,8 +52,8 @@ export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCoun
       
       {Array.from({ length: 6 - slots.length }).map((_, i) => (
         <div key={`empty-${i}`} style={{ 
-          width: '60px', 
-          height: '60px', 
+          width: '70px', 
+          height: '70px', 
           border: '2px dashed var(--poke-gray)', 
           borderRadius: '50%',
           opacity: 0.5
@@ -77,9 +77,9 @@ function PokemonSprite({ name }: { name: string }) {
       src={imgUrl} 
       alt={name} 
       title={name} 
-      style={{ width: '70px', height: '70px', objectFit: 'contain' }} 
+      style={{ width: '80px', height: '80px', objectFit: 'contain' }} 
     />
   ) : (
-    <div style={{ width: '60px', height: '60px', border: '2px dotted red', borderRadius: '50%' }} />
+    <div style={{ width: '70px', height: '70px', border: '2px dotted red', borderRadius: '50%' }} />
   );
 }

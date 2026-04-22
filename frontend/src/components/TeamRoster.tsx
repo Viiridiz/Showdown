@@ -5,16 +5,24 @@ import api from '../api/axiosConfig';
 interface Slot {
   _id: string;
   pokemonId: string;
+  heldItem?: string;
+  nickname?: string;
 }
 
-export default function TeamRoster({ teamId }: { teamId: string }) {
+export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCountUpdate }: { teamId: string, isOwner?: boolean, onPokemonClick?: (slot: Slot) => void, onSlotCountUpdate?: (count: number) => void }) {
   const [slots, setSlots] = useState<Slot[]>([]);
 
   useEffect(() => {
     api.get(`/slots/team/${teamId}`)
-      .then(res => setSlots(res.data.data.slots))
+      .then(res => {
+        const fetchedSlots = res.data.data.slots;
+        setSlots(fetchedSlots);
+        if (onSlotCountUpdate) {
+          onSlotCountUpdate(fetchedSlots.length);
+        }
+      })
       .catch(err => console.log("Error fetching slots", err));
-  }, [teamId]);
+  }, [teamId, onSlotCountUpdate]);
 
   return (
     <div style={{ 
@@ -28,7 +36,18 @@ export default function TeamRoster({ teamId }: { teamId: string }) {
       border: '1px solid var(--poke-gray)'
     }}>
       {slots.map(slot => (
-        <PokemonSprite key={slot._id} name={slot.pokemonId} />
+        <div 
+          key={slot._id} 
+          onClick={() => isOwner && onPokemonClick && onPokemonClick(slot)}
+          style={{ 
+            cursor: isOwner ? 'pointer' : 'default',
+            transition: 'opacity 0.2s'
+          }}
+          onMouseEnter={(e) => isOwner && (e.currentTarget.style.opacity = '0.7')}
+          onMouseLeave={(e) => isOwner && (e.currentTarget.style.opacity = '1')}
+        >
+          <PokemonSprite name={slot.pokemonId} />
+        </div>
       ))}
       
       {Array.from({ length: 6 - slots.length }).map((_, i) => (

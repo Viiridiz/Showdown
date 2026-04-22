@@ -10,6 +10,11 @@ const addSlot = async (req, res) => {
         if (!team) return res.status(404).json({ message: "Team not found" });
         if (team.userId.toString() !== req.user.id) return res.status(403).json({ message: "Not your team bro" });
 
+        const existingSlots = await BuildSlot.find({ teamId });
+        if (existingSlots.length >= 6) {
+            return res.status(400).json({ message: "This team already has 6 Pokémon!" });
+        }
+
         const slot = await BuildSlot.create({
             teamId, pokemonId, nickname, ability, heldItem, moves, evSpread
         });

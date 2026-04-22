@@ -17,18 +17,15 @@ const formatName = (str: string) => {
   return str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
-export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: string, onAddSuccess: () => void }) {
-  // Autocomplete State
+export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCancel }: { teamId: string, onAddSuccess: () => void, initialSlot?: any, onCancel?: () => void }) {
   const [allPokemon, setAllPokemon] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const dropdownRef = useRef<HTMLFormElement>(null);
 
-  // Search State
   const [searchName, setSearchName] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
-  // Data State
   const [pokeData, setPokeData] = useState<{ abilities: string[], moves: string[] } | null>(null);
   const [pokeImg, setPokeImg] = useState(''); 
   const [ability, setAbility] = useState('');
@@ -40,9 +37,48 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
   useEffect(() => {
     axios.get('https://pokeapi.co/api/v2/pokemon?limit=10000')
       .then(res => setAllPokemon(res.data.results.map((p: any) => p.name)))
-      .catch(err => console.log("Failed to load pokemon list", err));
+      .catch(err => console.log("failed to load pokemon list", err));
   }, []);
 
+  useEffect(() => {
+    if (initialSlot) {
+      loadEditData(initialSlot);
+    }
+  }, [initialSlot]);
+
+  const loadEditData = async (slot: any) => {
+    setIsSearching(true);
+    setSearchName(formatName(slot.pokemonId));
+    
+    try {
+      const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${slot.pokemonId.toLowerCase().trim()}`);
+      setPokeData({
+        abilities: res.data.abilities.map((a: any) => a.ability.name),
+        moves: res.data.moves.map((m: any) => m.move.name).sort()
+      });
+      setPokeImg(res.data.sprites.other['official-artwork'].front_default || res.data.sprites.front_default);
+      
+      setAbility(slot.ability || res.data.abilities[0].ability.name);
+      setItem(slot.heldItem || '');
+      setNature(slot.nickname || 'Adamant');
+      
+      const loadedMoves = ['', '', '', ''];
+      if (slot.moves) {
+        slot.moves.forEach((m: string, i: number) => { if (i < 4) loadedMoves[i] = m; });
+      }
+      setMoves(loadedMoves);
+      
+      if (slot.evSpread) {
+        const parts = slot.evSpread.split('/').map(Number);
+        if (parts.length === 6) {
+          setEvs({ hp: parts[0], atk: parts[1], def: parts[2], spa: parts[3], spd: parts[4], spe: parts[5] });
+        }
+      }
+    } catch (err) {
+      console.log("error fetching existing pokemon data");
+    }
+    setIsSearching(false);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -62,7 +98,7 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
   const fetchPokemonData = async (targetName: string) => {
     if (!targetName) return;
     setIsSearching(true);
-    setShowSuggestions(false); // Hide dropdown
+    setShowSuggestions(false); 
     setSearchName(formatName(targetName));
 
     try {
@@ -77,7 +113,7 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
       setMoves(['', '', '', '']); 
       setEvs({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }); 
     } catch (err) {
-      alert("Pokémon not found!");
+      alert("pokémon not found!");
       setPokeData(null);
       setPokeImg('');
     }
@@ -88,7 +124,7 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
     e.preventDefault();
     fetchPokemonData(searchName);
   };
- 
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -118,16 +154,22 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
     const evSpread = `${evs.hp}/${evs.atk}/${evs.def}/${evs.spa}/${evs.spd}/${evs.spe}`;
     const finalMoves = moves.filter(m => m !== '');
 
+    const payload = {
+      teamId,
+      pokemonId: searchName.toLowerCase().trim(),
+      nickname: nature, 
+      ability,
+      heldItem: item,
+      moves: finalMoves,
+      evSpread
+    };
+
     try {
-      await api.post('/slots', {
-        teamId,
-        pokemonId: searchName.toLowerCase().trim(),
-        nickname: nature, 
-        ability,
-        heldItem: item,
-        moves: finalMoves,
-        evSpread
-      });
+      if (initialSlot) {
+        await api.patch(`/slots/${initialSlot._id}`, payload);
+      } else {
+        await api.post('/slots', payload);
+      }
       onAddSuccess(); 
     } catch (err) {
       console.error(err);
@@ -135,60 +177,54 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
   };
 
   return (
-    <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f4f4f5', borderRadius: '8px', border: '1px solid var(--poke-gray)' }}>
+    <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f4f4f5', borderRadius: '8px', border: '1px solid var(--poke-gray)', maxHeight: initialSlot ? '85vh' : 'auto', overflowY: 'auto' }}>
       
-      {/* Search Bar with Autocomplete */}
-      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px', position: 'relative' }} ref={dropdownRef}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <input 
-            type="text" 
-            placeholder="Enter Pokémon Name..." 
-            value={searchName} 
-            onChange={handleInputChange} 
-            onFocus={() => {
-                if (searchName.length > 0) setShowSuggestions(true);
-                }}
-                            required 
-            style={{ width: '100%', padding: '10px' }}
-            autoComplete="off"
-          />
-          
-          {/* The Dropdown Menu */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div style={{ 
-              position: 'absolute', top: '100%', left: 0, right: 0, 
-              backgroundColor: '#fff', border: '1px solid var(--poke-gray)', 
-              borderRadius: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-            }}>
-              {suggestions.map(suggestion => (
-                <div 
-                  key={suggestion} 
-                  onClick={() => fetchPokemonData(suggestion)}
-                  style={{ 
-                    padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
-                >
-                  {formatName(suggestion)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {!initialSlot && (
+        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px', position: 'relative' }} ref={dropdownRef}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input 
+              type="text" 
+              placeholder="Enter Pokémon Name..." 
+              value={searchName} 
+              onChange={handleInputChange} 
+              onFocus={() => { if (searchName.length > 0) setShowSuggestions(true); }}
+              required 
+              style={{ width: '100%', padding: '10px' }}
+              autoComplete="off"
+            />
+            
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{ 
+                position: 'absolute', top: '100%', left: 0, right: 0, 
+                backgroundColor: '#fff', border: '1px solid var(--poke-gray)', 
+                borderRadius: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                {suggestions.map(suggestion => (
+                  <div 
+                    key={suggestion} 
+                    onClick={() => fetchPokemonData(suggestion)}
+                    style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                  >
+                    {formatName(suggestion)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        <button type="submit" disabled={isSearching} style={{ backgroundColor: 'var(--poke-dark)' }}>
-          {isSearching ? 'Loading...' : 'Search'}
-        </button>
-      </form>
+          <button type="submit" disabled={isSearching} style={{ backgroundColor: 'var(--poke-dark)' }}>
+            {isSearching ? 'Loading...' : 'Search'}
+          </button>
+        </form>
+      )}
 
-      {/* The Configuration Form */}
-      {pokeData && (
+      {pokeData ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           <div style={{ display: 'flex', gap: '25px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            
             {pokeImg && (
               <div style={{ flex: '0 0 150px', display: 'flex', justifyContent: 'center', backgroundColor: '#fff', borderRadius: '8px', padding: '10px', border: '1px solid #ddd' }}>
                 <img src={pokeImg} alt="Pokemon" style={{ width: '100%', height: '150px', objectFit: 'contain' }} />
@@ -234,7 +270,7 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
                   newMoves[i] = e.target.value;
                   setMoves(newMoves);
                 }} style={{ width: '100%' }}>
-                  <option value="">Select Move</option>
+                  <option value="">(Select Move)</option>
                   {pokeData.moves.map(m => <option key={m} value={m}>{formatName(m)}</option>)}
                 </select>
               ))}
@@ -273,8 +309,19 @@ export default function AddPokemonForm({ teamId, onAddSuccess }: { teamId: strin
             </div>
           </div>
 
-          <button type="submit" style={{ width: '100%', padding: '12px' }}>Add to Team</button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit" style={{ flex: 2, padding: '12px' }}>
+              {initialSlot ? 'Update Stats' : 'Add to Team'}
+            </button>
+            {initialSlot && (
+              <button type="button" onClick={onCancel} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--poke-gray)', color: '#333' }}>
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
+      ) : (
+        initialSlot && <p style={{ textAlign: 'center', margin: '20px 0' }}>Loading data...</p>
       )}
     </div>
   );

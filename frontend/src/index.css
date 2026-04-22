@@ -44,3 +44,21 @@ input:focus, select:focus {
   outline: none;
   border-color: var(--poke-red);
 }
+
+@keyframes popIn {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  0% { background-color: rgba(0,0,0,0); }
+  100% { background-color: rgba(0,0,0,0.8); }
+}
+
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.modal-content {
+  animation: popIn 0.2s ease-out forwards;
+}

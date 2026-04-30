@@ -9,7 +9,7 @@ interface Team {
   name: string;
   format: string;
   description: string;
-  upvotes: number;
+  upvotes: string[];
   userId: { _id: string; name: string };
 }
 
@@ -22,6 +22,9 @@ export default function Dashboard() {
   const [metaAlert, setMetaAlert] = useState<string>('');
   
   const navigate = useNavigate();
+  
+  const token = localStorage.getItem('token');
+  const currentUserId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
 
   useEffect(() => {
     fetchTeams();
@@ -34,7 +37,7 @@ export default function Dashboard() {
       setActiveUsers(count);
     });
 
-    socket.on('team:upvoted', ({ teamId, newUpvotes }: { teamId: string, newUpvotes: number }) => {
+    socket.on('team:upvoted', ({ teamId, newUpvotes }: { teamId: string, newUpvotes: string[] }) => {
       setTeams(prevTeams => prevTeams.map(team => 
         team._id === teamId ? { ...team, upvotes: newUpvotes } : team
       ));
@@ -55,7 +58,6 @@ export default function Dashboard() {
       const res = await api.get('/teams');
       setTeams(res.data.data.teams);
     } catch (err) {
-      console.error("Error fetching teams", err);
     }
   };
 
@@ -67,7 +69,6 @@ export default function Dashboard() {
       setDescription('');
       fetchTeams();
     } catch (err) {
-      console.error("Error creating team", err);
     }
   };
 
@@ -75,7 +76,6 @@ export default function Dashboard() {
     try {
       await api.patch(`/teams/${teamId}/upvote`);
     } catch (err) {
-      console.error("Error upvoting team", err);
     }
   };
 
@@ -84,7 +84,9 @@ export default function Dashboard() {
     window.location.href = '/login';
   };
 
-  const topTeams = [...teams].sort((a, b) => b.upvotes - a.upvotes).slice(0, 3);
+  const getUpvoteCount = (upvotes: any) => Array.isArray(upvotes) ? upvotes.length : (upvotes || 0);
+
+  const topTeams = [...teams].sort((a, b) => getUpvoteCount(b.upvotes) - getUpvoteCount(a.upvotes)).slice(0, 3);
   
   const podiumOrder = [topTeams[1], topTeams[0], topTeams[2]];
   const podiumColors = ["#C0C0C0", "#FFD700", "#CD7F32"]; 
@@ -166,7 +168,7 @@ export default function Dashboard() {
                   <h4 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: 'var(--poke-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
                     {team.name}
                   </h4>
-                  <p style={{ margin: 0, color: 'gray', fontSize: '0.9rem', fontWeight: 'bold' }}>👍 {team.upvotes}</p>
+                  <p style={{ margin: 0, color: 'gray', fontSize: '0.9rem', fontWeight: 'bold' }}>👍 {getUpvoteCount(team.upvotes)}</p>
                 </div>
               );
             })}
@@ -217,7 +219,10 @@ export default function Dashboard() {
       {/* Teams Feed */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <h2 style={{ color: 'var(--poke-dark)', marginBottom: '5px' }}>Recent Builds</h2>
-        {teams.map((team) => (
+        {teams.map((team) => {
+          const hasUpvoted = Array.isArray(team.upvotes) && team.upvotes.includes(currentUserId);
+          
+          return (
           <div key={team._id} style={{ 
             backgroundColor: '#fff', padding: '25px', borderRadius: '12px', 
             boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #eaeaea' 
@@ -236,12 +241,17 @@ export default function Dashboard() {
                 backgroundColor: '#f8f9fa', padding: '8px 16px', borderRadius: '30px',
                 border: '1px solid #eee'
               }}>
-                <strong style={{ fontSize: '1.25rem', color: 'var(--poke-dark)' }}>{team.upvotes}</strong>
+                <strong style={{ fontSize: '1.25rem', color: 'var(--poke-dark)' }}>{getUpvoteCount(team.upvotes)}</strong>
                 <button 
                   onClick={() => handleUpvote(team._id)}
-                  style={{ padding: '8px 16px', fontSize: '0.9rem', borderRadius: '20px', backgroundColor: 'var(--poke-red)' }}
+                  style={{ 
+                    padding: '8px 16px', fontSize: '0.9rem', borderRadius: '20px', 
+                    backgroundColor: hasUpvoted ? 'var(--poke-red)' : '#e0e0e0', 
+                    color: hasUpvoted ? 'white' : '#333', 
+                    transition: 'background-color 0.2s', border: 'none', cursor: 'pointer' 
+                  }}
                 >
-                  Upvote
+                  {hasUpvoted ? 'Voted' : '👍 Upvote'}
                 </button>
               </div>
             </div>
@@ -250,12 +260,12 @@ export default function Dashboard() {
             
             <button 
               onClick={() => navigate(`/team/${team._id}`)} 
-              style={{ marginTop: '20px', width: '100%', padding: '12px', fontSize: '1.05rem', backgroundColor: 'var(--poke-dark)', borderRadius: '8px' }}
+              style={{ marginTop: '20px', width: '100%', padding: '12px', fontSize: '1.05rem', backgroundColor: 'var(--poke-dark)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
             >
-              View Full Roster & Edit
+              View Roster Details
             </button>
           </div>
-        ))}
+        )})}
       </div>
     </div>
   );

@@ -15,6 +15,11 @@ const createTeam = async (req, res) => {
             userId: req.user.id
         });
 
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('meta:update', { message: `A new team was drafted: ${team.name}` });
+        }
+
         return res.status(201).json({
             message: "Team created successfully!",
             data: { team }
@@ -93,14 +98,23 @@ const deleteTeam = async (req, res) => {
 const upvoteTeam = async (req, res) => {
     try {
         const { id } = req.params;
-        const team = await Team.findByIdAndUpdate(id, { $inc: { upvotes: 1 } }, { new: true });
+        const userId = req.user.id;
 
+        let team = await Team.findById(id);
         if (!team) return res.status(404).json({ message: "Team not found!" });
 
-        const io = req.app.get('io');
-        io.emit('team:upvoted', { teamId: team._id, newUpvotes: team.upvotes });
+        if (team.upvotes.includes(userId)) {
+            team = await Team.findByIdAndUpdate(id, { $pull: { upvotes: userId } }, { new: true });
+        } else {
+            team = await Team.findByIdAndUpdate(id, { $addToSet: { upvotes: userId } }, { new: true });
+        }
 
-        return res.status(200).json({ message: "Upvoted!", data: { team } });
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('team:upvoted', { teamId: team._id, newUpvotes: team.upvotes });
+        }
+
+        return res.status(200).json({ message: "Upvote toggled!", data: { team } });
     } catch (error) {
         console.log(error);
         return res.status(500).json({ message: "Error upvoting team." });

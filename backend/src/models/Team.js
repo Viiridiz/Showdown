@@ -4,7 +4,7 @@ const teamSchema = new mongoose.Schema({
     name: { type: String, required: true }, // ex: rain team alpha
     format: { type: String, required: true }, // vgc 2026, ou, etc
     description: { type: String },
-    upvotes: { type: Number, default: 0 }, // for the websocket ticker
+    upvotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 

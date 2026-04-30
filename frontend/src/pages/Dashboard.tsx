@@ -31,7 +31,14 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const socket = io('http://localhost:5000');
+      const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
+      const socketUrl = rawUrl.replace(/\/api$/, '');
+
+      const socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        withCredentials: true
+      });
 
     socket.on('presence:update', (count: number) => {
       setActiveUsers(count);

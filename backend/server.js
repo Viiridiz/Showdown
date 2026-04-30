@@ -31,8 +31,13 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*", 
-        methods: ["GET", "POST", "PATCH", "DELETE"]
+        origin: [
+            'http://localhost:5173', 
+            'http://localhost:3000', 
+            process.env.FRONTEND_URL 
+        ],
+        methods: ["GET", "POST", "PATCH", "DELETE"],
+        credentials: true
     }
 });
 
@@ -51,7 +56,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// CRITICAL: change app.listen to server.listen
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

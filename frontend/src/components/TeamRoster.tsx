@@ -9,7 +9,7 @@ interface Slot {
   nickname?: string;
 }
 
-export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCountUpdate, refreshTrigger }: { teamId: string, isOwner?: boolean, onPokemonClick?: (slot: Slot) => void, onSlotCountUpdate?: (count: number) => void, refreshTrigger?: number }) {
+export default function TeamRoster({ teamId, onPokemonClick, onSlotCountUpdate, refreshTrigger }: { teamId: string, isOwner?: boolean, onPokemonClick?: (slot: Slot) => void, onSlotCountUpdate?: (count: number) => void, refreshTrigger?: number }) {
   const [slots, setSlots] = useState<Slot[]>([]);
 
   useEffect(() => {
@@ -21,8 +21,8 @@ export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCoun
           onSlotCountUpdate(fetchedSlots.length);
         }
       })
-      .catch(err => console.error("Error fetching slots", err));
-  }, [teamId, onSlotCountUpdate, refreshTrigger]);
+      .catch(() => {}); 
+  }, [teamId, onSlotCountUpdate, refreshTrigger]); 
 
   return (
     <div style={{ 
@@ -38,13 +38,13 @@ export default function TeamRoster({ teamId, isOwner, onPokemonClick, onSlotCoun
       {slots.map(slot => (
         <div 
           key={slot._id} 
-          onClick={() => isOwner && onPokemonClick && onPokemonClick(slot)}
+          onClick={() => onPokemonClick && onPokemonClick(slot)}
           style={{ 
-            cursor: isOwner ? 'pointer' : 'default',
+            cursor: 'pointer',
             transition: 'transform 0.2s, opacity 0.2s'
           }}
-          onMouseEnter={(e) => isOwner && (e.currentTarget.style.transform = 'scale(1.1)')}
-          onMouseLeave={(e) => isOwner && (e.currentTarget.style.transform = 'scale(1)')}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
           <PokemonSprite name={slot.pokemonId} />
         </div>

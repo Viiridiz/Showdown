@@ -61,13 +61,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateTeam = async (e: React.FormEvent) => {
+ const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/teams', { name, format, description });
+      const res = await api.post('/teams', { name, format, description });
       setName('');
       setDescription('');
-      fetchTeams();
+      
+      if (res.data && res.data.data && res.data.data.team) {
+        navigate(`/team/${res.data.data.team._id}`);
+      } else {
+        fetchTeams(); 
+      }
     } catch (err) {
     }
   };
@@ -219,53 +224,65 @@ export default function Dashboard() {
       {/* Teams Feed */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <h2 style={{ color: 'var(--poke-dark)', marginBottom: '5px' }}>Recent Builds</h2>
-        {teams.map((team) => {
-          const hasUpvoted = Array.isArray(team.upvotes) && team.upvotes.includes(currentUserId);
-          
-          return (
-          <div key={team._id} style={{ 
-            backgroundColor: '#fff', padding: '25px', borderRadius: '12px', 
-            boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #eaeaea' 
+        
+        {teams.length === 0 ? (
+          <div style={{ 
+            backgroundColor: '#fafafa', padding: '50px 20px', borderRadius: '12px', 
+            border: '2px dashed #ccc', textAlign: 'center', color: '#666' 
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
-              <div>
-                <h2 style={{ margin: '0 0 5px 0', color: 'var(--poke-dark)', fontSize: '1.5rem' }}>
-                  {team.name} <span style={{ fontSize: '1rem', color: '#888', fontWeight: 'normal' }}>({team.format})</span>
-                </h2>
-                <p style={{ margin: '0 0 5px 0', color: '#444' }}>{team.description}</p>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#aaa' }}>Built by: <strong>{team.userId?.name || 'Unknown Trainer'}</strong></p>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', alignItems: 'center', gap: '12px', 
-                backgroundColor: '#f8f9fa', padding: '8px 16px', borderRadius: '30px',
-                border: '1px solid #eee'
+            <h3 style={{ margin: '0 0 10px 0', color: 'var(--poke-dark)' }}>No Teams Drafted Yet</h3>
+            <p style={{ margin: 0, fontSize: '1.1rem' }}>The meta is wide open. Use the form above to be the first trainer to share a build!</p>
+          </div>
+        ) : (
+          teams.map((team) => {
+            const hasUpvoted = Array.isArray(team.upvotes) && team.upvotes.includes(currentUserId);
+            
+            return (
+              <div key={team._id} style={{ 
+                backgroundColor: '#fff', padding: '25px', borderRadius: '12px', 
+                boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #eaeaea' 
               }}>
-                <strong style={{ fontSize: '1.25rem', color: 'var(--poke-dark)' }}>{getUpvoteCount(team.upvotes)}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
+                  <div>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--poke-dark)', fontSize: '1.5rem' }}>
+                      {team.name} <span style={{ fontSize: '1rem', color: '#888', fontWeight: 'normal' }}>({team.format})</span>
+                    </h2>
+                    <p style={{ margin: '0 0 5px 0', color: '#444' }}>{team.description}</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#aaa' }}>Built by: <strong>{team.userId?.name || 'Unknown Trainer'}</strong></p>
+                  </div>
+                  
+                  <div style={{ 
+                    display: 'flex', alignItems: 'center', gap: '12px', 
+                    backgroundColor: '#f8f9fa', padding: '8px 16px', borderRadius: '30px',
+                    border: '1px solid #eee'
+                  }}>
+                    <strong style={{ fontSize: '1.25rem', color: 'var(--poke-dark)' }}>{getUpvoteCount(team.upvotes)}</strong>
+                    <button 
+                      onClick={() => handleUpvote(team._id)}
+                      style={{ 
+                        padding: '8px 16px', fontSize: '0.9rem', borderRadius: '20px', 
+                        backgroundColor: hasUpvoted ? 'var(--poke-red)' : '#e0e0e0', 
+                        color: hasUpvoted ? 'white' : '#333', 
+                        transition: 'background-color 0.2s', border: 'none', cursor: 'pointer' 
+                      }}
+                    >
+                      {hasUpvoted ? 'Voted' : '👍 Upvote'}
+                    </button>
+                  </div>
+                </div>
+
+                <TeamRoster teamId={team._id} />
+                
                 <button 
-                  onClick={() => handleUpvote(team._id)}
-                  style={{ 
-                    padding: '8px 16px', fontSize: '0.9rem', borderRadius: '20px', 
-                    backgroundColor: hasUpvoted ? 'var(--poke-red)' : '#e0e0e0', 
-                    color: hasUpvoted ? 'white' : '#333', 
-                    transition: 'background-color 0.2s', border: 'none', cursor: 'pointer' 
-                  }}
+                  onClick={() => navigate(`/team/${team._id}`)} 
+                  style={{ marginTop: '20px', width: '100%', padding: '12px', fontSize: '1.05rem', backgroundColor: 'var(--poke-dark)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
                 >
-                  {hasUpvoted ? 'Voted' : '👍 Upvote'}
+                  View Roster Details
                 </button>
               </div>
-            </div>
-
-            <TeamRoster teamId={team._id} />
-            
-            <button 
-              onClick={() => navigate(`/team/${team._id}`)} 
-              style={{ marginTop: '20px', width: '100%', padding: '12px', fontSize: '1.05rem', backgroundColor: 'var(--poke-dark)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-            >
-              View Roster Details
-            </button>
-          </div>
-        )})}
+            );
+          })
+        )}
       </div>
     </div>
   );

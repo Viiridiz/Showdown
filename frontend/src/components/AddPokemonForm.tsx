@@ -17,7 +17,7 @@ const formatName = (str: string) => {
   return str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
-export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCancel }: { teamId: string, onAddSuccess: () => void, initialSlot?: any, onCancel?: () => void }) {
+export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCancel, isReadOnly = false }: { teamId: string, onAddSuccess: () => void, initialSlot?: any, onCancel?: () => void, isReadOnly?: boolean }) {
   const [allPokemon, setAllPokemon] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -37,13 +37,11 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
   useEffect(() => {
     axios.get('https://pokeapi.co/api/v2/pokemon?limit=10000')
       .then(res => setAllPokemon(res.data.results.map((p: any) => p.name)))
-      .catch(err => console.log("failed to load pokemon list", err));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (initialSlot) {
-      loadEditData(initialSlot);
-    }
+    if (initialSlot) loadEditData(initialSlot);
   }, [initialSlot]);
 
   const loadEditData = async (slot: any) => {
@@ -60,22 +58,18 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
       
       setAbility(slot.ability || res.data.abilities[0].ability.name);
       setItem(slot.heldItem || '');
-      setNature(slot.nickname || 'Adamant');
+      setNature(slot.nickname || 'Adamant'); 
       
       const loadedMoves = ['', '', '', ''];
-      if (slot.moves) {
-        slot.moves.forEach((m: string, i: number) => { if (i < 4) loadedMoves[i] = m; });
-      }
+      if (slot.moves) slot.moves.forEach((m: string, i: number) => { if (i < 4) loadedMoves[i] = m; });
       setMoves(loadedMoves);
       
       if (slot.evSpread) {
         const parts = slot.evSpread.split('/').map(Number);
-        if (parts.length === 6) {
-          setEvs({ hp: parts[0], atk: parts[1], def: parts[2], spa: parts[3], spd: parts[4], spe: parts[5] });
-        }
+        if (parts.length === 6) setEvs({ hp: parts[0], atk: parts[1], def: parts[2], spa: parts[3], spd: parts[4], spe: parts[5] });
       }
     } catch (err) {
-      console.log("error fetching existing pokemon data");
+      // Cleaned log
     }
     setIsSearching(false);
   };
@@ -83,12 +77,8 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchName(value);
-
     if (value.length > 0) {
-      const filtered = allPokemon
-        .filter(p => p.includes(value.toLowerCase()))
-        .slice(0, 10);
-      setSuggestions(filtered);
+      setSuggestions(allPokemon.filter(p => p.includes(value.toLowerCase())).slice(0, 10));
       setShowSuggestions(true);
     } else {
       setShowSuggestions(false);
@@ -107,13 +97,12 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
         abilities: res.data.abilities.map((a: any) => a.ability.name),
         moves: res.data.moves.map((m: any) => m.move.name).sort()
       });
-      
       setPokeImg(res.data.sprites.other['official-artwork'].front_default || res.data.sprites.front_default);
       setAbility(res.data.abilities[0].ability.name);
       setMoves(['', '', '', '']); 
       setEvs({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }); 
     } catch (err) {
-      alert("pokémon not found!");
+      alert("Pokémon not found!");
       setPokeData(null);
       setPokeImg('');
     }
@@ -127,23 +116,17 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowSuggestions(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleEvChange = (stat: keyof typeof evs, value: string) => {
+    if (isReadOnly) return;
     let numValue = Math.max(0, Math.min(252, Number(value) || 0));
-    const otherStatsTotal = Object.keys(evs).reduce((total, currentStat) => {
-      return total + (currentStat === stat ? 0 : evs[currentStat as keyof typeof evs]);
-    }, 0);
-
-    if (otherStatsTotal + numValue > 510) {
-      numValue = 510 - otherStatsTotal;
-    }
+    const otherStatsTotal = Object.keys(evs).reduce((total, currentStat) => total + (currentStat === stat ? 0 : evs[currentStat as keyof typeof evs]), 0);
+    if (otherStatsTotal + numValue > 510) numValue = 510 - otherStatsTotal;
     setEvs({ ...evs, [stat]: numValue });
   };
 
@@ -151,17 +134,11 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const evSpread = `${evs.hp}/${evs.atk}/${evs.def}/${evs.spa}/${evs.spd}/${evs.spe}`;
-    const finalMoves = moves.filter(m => m !== '');
+    if (isReadOnly) return;
 
     const payload = {
-      teamId,
-      pokemonId: searchName.toLowerCase().trim(),
-      nickname: nature, 
-      ability,
-      heldItem: item,
-      moves: finalMoves,
-      evSpread
+      teamId, pokemonId: searchName.toLowerCase().trim(), nickname: nature, 
+      ability, heldItem: item, moves: moves.filter(m => m !== ''), evSpread: `${evs.hp}/${evs.atk}/${evs.def}/${evs.spa}/${evs.spd}/${evs.spe}`
     };
 
     try {
@@ -170,60 +147,49 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
       } else {
         await api.post('/slots', payload);
       }
+      
       onAddSuccess(); 
+
+      if (!initialSlot) {
+        setPokeData(null);
+        setSearchName('');
+      } else if (onCancel) {
+        onCancel();
+      }
+
     } catch (err) {
-      console.error(err);
     }
   };
+
+  const inputStyle = { width: '100%', opacity: isReadOnly ? 0.7 : 1 };
 
   return (
     <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f4f4f5', borderRadius: '8px', border: '1px solid var(--poke-gray)', maxHeight: initialSlot ? '85vh' : 'auto', overflowY: 'auto' }}>
       
-      {!initialSlot && (
+      {!initialSlot && !isReadOnly && (
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px', position: 'relative' }} ref={dropdownRef}>
           <div style={{ flex: 1, position: 'relative' }}>
             <input 
-              type="text" 
-              placeholder="Enter Pokémon Name..." 
-              value={searchName} 
-              onChange={handleInputChange} 
-              onFocus={() => { if (searchName.length > 0) setShowSuggestions(true); }}
-              required 
-              style={{ width: '100%', padding: '10px' }}
-              autoComplete="off"
+              type="text" placeholder="Enter Pokémon Name..." value={searchName} 
+              onChange={handleInputChange} onFocus={() => { if (searchName.length > 0) setShowSuggestions(true); }}
+              required style={{ width: '100%', padding: '10px' }} autoComplete="off"
             />
-            
             {showSuggestions && suggestions.length > 0 && (
-              <div style={{ 
-                position: 'absolute', top: '100%', left: 0, right: 0, 
-                backgroundColor: '#fff', border: '1px solid var(--poke-gray)', 
-                borderRadius: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}>
-                {suggestions.map(suggestion => (
-                  <div 
-                    key={suggestion} 
-                    onClick={() => fetchPokemonData(suggestion)}
-                    style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
-                  >
-                    {formatName(suggestion)}
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid var(--poke-gray)', borderRadius: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                {suggestions.map(s => (
+                  <div key={s} onClick={() => fetchPokemonData(s)} style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}>
+                    {formatName(s)}
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          <button type="submit" disabled={isSearching} style={{ backgroundColor: 'var(--poke-dark)' }}>
-            {isSearching ? 'Loading...' : 'Search'}
-          </button>
+          <button type="submit" disabled={isSearching} style={{ backgroundColor: 'var(--poke-dark)' }}>{isSearching ? 'Loading...' : 'Search'}</button>
         </form>
       )}
 
       {pokeData ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
           <div style={{ display: 'flex', gap: '25px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
             {pokeImg && (
               <div style={{ flex: '0 0 150px', display: 'flex', justifyContent: 'center', backgroundColor: '#fff', borderRadius: '8px', padding: '10px', border: '1px solid #ddd' }}>
@@ -235,28 +201,21 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#666' }}>Item</label>
                 <input 
-                  type="text" 
-                  list="common-items"
-                  placeholder="Select or type item..." 
-                  value={item} 
-                  onChange={e => setItem(e.target.value)} 
-                  style={{ width: '100%' }} 
+                  type="text" list="common-items" placeholder="Select or type item..." 
+                  value={item} onChange={e => setItem(e.target.value)} 
+                  style={inputStyle} disabled={isReadOnly}
                 />
-                <datalist id="common-items">
-                  {COMMON_ITEMS.map(i => <option key={i} value={i} />)}
-                </datalist>
+                <datalist id="common-items">{COMMON_ITEMS.map(i => <option key={i} value={i} />)}</datalist>
               </div>
-              
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#666' }}>Ability</label>
-                <select value={ability} onChange={e => setAbility(e.target.value)} style={{ width: '100%' }}>
+                <select value={ability} onChange={e => setAbility(e.target.value)} style={inputStyle} disabled={isReadOnly}>
                   {pokeData.abilities.map(a => <option key={a} value={a}>{formatName(a)}</option>)}
                 </select>
               </div>
-
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#666' }}>Nature</label>
-                <select value={nature} onChange={e => setNature(e.target.value)} style={{ width: '100%' }}>
+                <select value={nature} onChange={e => setNature(e.target.value)} style={inputStyle} disabled={isReadOnly}>
                   {NATURES.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
@@ -266,56 +225,39 @@ export default function AddPokemonForm({ teamId, onAddSuccess, initialSlot, onCa
               <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#666' }}>Moveset</label>
               {[0, 1, 2, 3].map(i => (
                 <select key={i} value={moves[i]} onChange={e => {
-                  const newMoves = [...moves];
-                  newMoves[i] = e.target.value;
-                  setMoves(newMoves);
-                }} style={{ width: '100%' }}>
-                  <option value="">(Select Move)</option>
+                  const newMoves = [...moves]; newMoves[i] = e.target.value; setMoves(newMoves);
+                }} style={inputStyle} disabled={isReadOnly}>
+                  <option value="">Select Move</option>
                   {pokeData.moves.map(m => <option key={m} value={m}>{formatName(m)}</option>)}
                 </select>
               ))}
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
+          <div style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', opacity: isReadOnly ? 0.8 : 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-              <strong>EV Training</strong>
-              <strong style={{ color: remainingEvs === 0 ? 'var(--poke-red)' : '#2e7d32' }}>
-                Remaining: {remainingEvs}
-              </strong>
+              <strong>EV Spread</strong>
+              {!isReadOnly && <strong style={{ color: remainingEvs === 0 ? 'var(--poke-red)' : '#2e7d32' }}>Remaining: {remainingEvs}</strong>}
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {Object.keys(evs).map((stat) => (
                 <div key={stat} style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <span style={{ width: '60px', fontSize: '0.85rem', fontWeight: 'bold', color: '#666' }}>
-                    {STAT_LABELS[stat as keyof typeof evs]}
-                  </span>
-                  <input 
-                    type="number" 
-                    value={evs[stat as keyof typeof evs]} 
-                    onChange={e => handleEvChange(stat as keyof typeof evs, e.target.value)}
-                    style={{ width: '65px', textAlign: 'center' }}
-                  />
-                  <input 
-                    type="range" 
-                    min="0" max="252" step="4"
-                    value={evs[stat as keyof typeof evs]} 
-                    onChange={e => handleEvChange(stat as keyof typeof evs, e.target.value)}
-                    style={{ flex: 1, cursor: 'pointer', accentColor: 'var(--poke-red)' }}
-                  />
+                  <span style={{ width: '60px', fontSize: '0.85rem', fontWeight: 'bold', color: '#666' }}>{STAT_LABELS[stat as keyof typeof evs]}</span>
+                  <input type="number" value={evs[stat as keyof typeof evs]} onChange={e => handleEvChange(stat as keyof typeof evs, e.target.value)} style={{ width: '65px', textAlign: 'center' }} disabled={isReadOnly} />
+                  <input type="range" min="0" max="252" step="4" value={evs[stat as keyof typeof evs]} onChange={e => handleEvChange(stat as keyof typeof evs, e.target.value)} style={{ flex: 1, cursor: isReadOnly ? 'default' : 'pointer', accentColor: 'var(--poke-red)' }} disabled={isReadOnly} />
                 </div>
               ))}
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" style={{ flex: 2, padding: '12px' }}>
-              {initialSlot ? 'Update Stats' : 'Add to Team'}
-            </button>
+            {!isReadOnly && (
+              <button type="submit" style={{ flex: 2, padding: '12px' }}>{initialSlot ? 'Update Stats' : 'Add to Team'}</button>
+            )}
             {initialSlot && (
-              <button type="button" onClick={onCancel} style={{ flex: 1, padding: '12px', backgroundColor: 'var(--poke-gray)', color: '#333' }}>
-                Cancel
+              <button type="button" onClick={onCancel} style={{ flex: 1, padding: '12px', backgroundColor: isReadOnly ? 'var(--poke-dark)' : 'var(--poke-gray)', color: isReadOnly ? '#fff' : '#333' }}>
+                {isReadOnly ? 'Close View' : 'Cancel'}
               </button>
             )}
           </div>

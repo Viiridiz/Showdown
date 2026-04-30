@@ -83,7 +83,7 @@ export default function TeamView() {
       
       <button 
         onClick={() => navigate('/')} 
-        style={{ backgroundColor: 'var(--poke-dark)', marginBottom: '30px', padding: '10px 20px', borderRadius: '8px' }}
+        style={{ backgroundColor: 'var(--poke-dark)', marginBottom: '30px', padding: '10px 20px', borderRadius: '8px', color: 'white', border: 'none', cursor: 'pointer' }}
       >
         ← Back to Feed
       </button>
@@ -96,8 +96,7 @@ export default function TeamView() {
         boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
       }}>
         
-        {/* TEAM HEADER SECTION */}
-        {isEditingTeam ? (
+        {isEditingTeam && isOwner ? (
           <form onSubmit={handleUpdateTeam} style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ddd' }}>
             <h3 style={{ marginTop: 0, color: 'var(--poke-dark)' }}>Edit Team Details</h3>
             <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
@@ -125,8 +124,8 @@ export default function TeamView() {
               style={{ width: '100%', padding: '10px', marginBottom: '15px' }}
             />
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" style={{ backgroundColor: '#2e7d32', padding: '10px 20px' }}>Save Changes</button>
-              <button type="button" onClick={() => setIsEditingTeam(false)} style={{ backgroundColor: 'var(--poke-gray)', color: '#333' }}>Cancel</button>
+              <button type="submit" style={{ backgroundColor: '#2e7d32', color: 'white', border: 'none', padding: '10px 20px', cursor: 'pointer' }}>Save Changes</button>
+              <button type="button" onClick={() => setIsEditingTeam(false)} style={{ backgroundColor: 'var(--poke-gray)', color: '#333', border: 'none', padding: '10px 20px', cursor: 'pointer' }}>Cancel</button>
             </div>
           </form>
         ) : (
@@ -149,10 +148,10 @@ export default function TeamView() {
               
               {isOwner && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <button onClick={() => setIsEditingTeam(true)} style={{ backgroundColor: 'var(--poke-dark)' }}>
+                  <button onClick={() => setIsEditingTeam(true)} style={{ backgroundColor: 'var(--poke-dark)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                     Edit Details
                   </button>
-                  <button onClick={handleDeleteTeam} style={{ backgroundColor: 'var(--poke-red)' }}>
+                  <button onClick={handleDeleteTeam} style={{ backgroundColor: 'var(--poke-red)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                     Delete Team
                   </button>
                 </div>
@@ -161,18 +160,15 @@ export default function TeamView() {
           </div>
         )}
 
-        {/* ROSTER SECTION */}
         <h3 style={{ color: 'var(--poke-dark)', margin: '30px 0 10px 0' }}>Current Roster</h3>
         
         <TeamRoster 
           teamId={id || ''} 
-          isOwner={isOwner} 
           onPokemonClick={setEditingSlot} 
           onSlotCountUpdate={setSlotCount}
           refreshTrigger={refreshTrigger} 
         />
         
-        {/* ADD POKEMON SECTION */}
         {isOwner && slotCount < 6 && (
           <div style={{ marginTop: '40px' }}>
             <AddPokemonForm 
@@ -189,11 +185,11 @@ export default function TeamView() {
         )}
       </div>
 
-      {/* EDIT/DELETE POKEMON MODAL */}
       {editingSlot && (
         <div className="modal-overlay" style={{ 
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+          backgroundColor: 'rgba(0,0,0,0.6)'
         }}>
           <div className="modal-content" style={{ 
             backgroundColor: '#fff', padding: '30px', borderRadius: '12px', 
@@ -202,11 +198,13 @@ export default function TeamView() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ textTransform: 'capitalize', color: 'var(--poke-dark)', margin: 0 }}>
-                Editing {editingSlot.pokemonId}
+                {isOwner ? 'Editing' : 'Viewing'} {editingSlot.pokemonId}
               </h2>
-              <button onClick={handleRemovePokemon} style={{ backgroundColor: 'var(--poke-red)', padding: '8px 16px', fontSize: '0.9rem' }}>
-                Release (Delete)
-              </button>
+              {isOwner && (
+                <button onClick={handleRemovePokemon} style={{ backgroundColor: 'var(--poke-red)', color: 'white', border: 'none', padding: '8px 16px', fontSize: '0.9rem', borderRadius: '4px', cursor: 'pointer' }}>
+                  Release (Delete)
+                </button>
+              )}
             </div>
             
             <AddPokemonForm 
@@ -214,6 +212,7 @@ export default function TeamView() {
               initialSlot={editingSlot}
               onAddSuccess={handleRosterChange} 
               onCancel={() => setEditingSlot(null)}
+              isReadOnly={!isOwner}
             />
           </div>
         </div>
